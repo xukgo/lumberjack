@@ -107,6 +107,10 @@ type Logger struct {
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
 
+	// After some seconds, the compress action will active, default value is 0, represents immediate compression
+	// To solve the problem that logstash(ELK:log micro service module) format required
+	CompressDelay int `json:"compressDelay" yaml:"compressDelay"`
+
 	size int64
 	file *os.File
 	mu   sync.Mutex
@@ -364,9 +368,13 @@ func (l *Logger) millRunOnce() error {
 	}
 	for _, f := range compress {
 		fn := filepath.Join(l.dir(), f.Name())
-		errCompress := compressLogFile(fn, fn+compressSuffix)
-		if err == nil && errCompress != nil {
-			err = errCompress
+		if l.CompressDelay <= 0 {
+			errCompress := compressLogFile(fn, fn+compressSuffix)
+			if err == nil && errCompress != nil {
+				err = errCompress
+			}
+		} else {
+			addWillCompressFile(fn, l.CompressDelay)
 		}
 	}
 
